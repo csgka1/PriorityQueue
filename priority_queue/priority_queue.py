@@ -1,5 +1,6 @@
 import heapq
 from typing import Dict, Any, Union
+import time
 
 _Number = Union[int, float]
 
@@ -51,19 +52,23 @@ class PriorityQueue:
         self.heap = []
         self.length = 0
         self.priority_lentghs: Dict[_Number, int] = {}  # 每个优先级的队列长度
-        self.priority_order: Dict[_Number, int] = {}  # 每个优先级的发号器存储
+        self.priority_timestamp_order: Dict[_Number, _TimestampOrder] = {}
 
-    def get_order(self, priority: int) -> int:
+    def get_order(self, priority: int) -> '_TimestampOrder':
         """
         发号器，为每个优先级的队列提供order。
-        现在单纯使用自增来实现。
-        考虑基于时间戳来实现。
+        基于时间戳实现。
         """
-        if priority not in self.priority_order:
-            self.priority_order[priority] = 1
+        if priority not in self.priority_timestamp_order:
+            self.priority_timestamp_order[priority] = _TimestampOrder(int(time.time()), 0)
+
+        current_timestamp = int(time.time())
+        if current_timestamp > self.priority_timestamp_order[priority].timestamp:
+            self.priority_timestamp_order[priority].timestamp = current_timestamp
+
         else:
-            self.priority_order[priority] += 1
-        return self.priority_order[priority]
+            self.priority_timestamp_order[priority].number += 1
+        return self.priority_timestamp_order[priority]
 
     def is_empty(self) -> bool:
         return self.length == 0
@@ -80,15 +85,68 @@ class PriorityQueue:
         return heapq.heappop(self.heap).payload
 
 
+class _TimestampOrder:
+    """基于时间戳的编号。
+    进行比较时，时间较早的一个较小。若时间相同，number更小的一个较小。
+    >>> a = _TimestampOrder(1, 1)
+    >>> b = _TimestampOrder(1, 2)
+    >>> c = _TimestampOrder(2, 1)
+    >>> d = _TimestampOrder(1, 2)
+    >>> a < b
+    True
+    >>> a > b
+    False
+    >>> a == b
+    False
+    >>> b > a
+    True
+    >>> b < a
+    False
+    >>> b == a
+    False
+    >>> a > c
+    False
+    >>> a < c
+    True
+    >>> a == c
+    False
+    >>> d == b
+    True
+    >>> d > b
+    False
+    >>> d < b
+    False
+    """
+    def __init__(self, timestamp: int, number: int):
+        self.timestamp: int = timestamp
+        self.number: int = number
+
+    def __lt__(self, other: '_TimestampOrder'):
+        if self.timestamp < other.timestamp:
+            return True
+        if self.timestamp == other.timestamp and self.number < other.number:
+            return True
+        return False
+
+    def __eq__(self, other: '_TimestampOrder'):
+        if self.timestamp == other.timestamp and self.number == other.number:
+            return True
+        else:
+            return False
+
+    def __gt__(self, other: '_TimestampOrder'):
+        return not (self.__lt__(other) or self.__eq__(other))
+
+
 class _Element:
     """
     插入到优先队列中的元素。优先级越高，越早被取出。若优先级相同，放入的顺序越靠前，越先被取出。
     在进行比较时，越优先的元素越小。
 
-    >>> a = _Element(priority=100, order=1, payload=None)
-    >>> b = _Element(priority=60.5, order=1, payload=None)
-    >>> c = _Element(priority=60.5, order=3, payload=None)
-    >>> a_same = _Element(priority=100, order=1, payload=None)
+    >>> a = _Element(priority=100, order=_TimestampOrder(0, 1), payload=None)
+    >>> b = _Element(priority=60.5, order=_TimestampOrder(0, 1), payload=None)
+    >>> c = _Element(priority=60.5, order=_TimestampOrder(0, 3), payload=None)
+    >>> a_same = _Element(priority=100, order=_TimestampOrder(0, 1), payload=None)
     >>> a < b
     True
     >>> a > b
@@ -125,9 +183,9 @@ class _Element:
     False
     """
 
-    def __init__(self, priority: _Number, order: int, payload: Any):
+    def __init__(self, priority: _Number, order: _TimestampOrder, payload: Any):
         self.priority: _Number = priority
-        self.order: int = order
+        self.order: _TimestampOrder = order
         self.payload: Any = payload
 
     # 由于使用了最小堆，所以更优先的对象需要更“小”

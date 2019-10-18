@@ -71,7 +71,7 @@ class PriorityQueue:
         self.priority_timestamp_order: Dict[_Number, _TimestampOrder] = {}
         self._mutex = threading.Lock()
 
-    def get_order(self, priority: int) -> '_TimestampOrder':
+    def __get_order(self, priority: int) -> '_TimestampOrder':
         """
         发号器，为每个优先级的队列提供order。
         基于时间戳实现。
@@ -92,7 +92,7 @@ class PriorityQueue:
 
     def push(self, obj, priority: _Number = Priorities.NORMAL) -> None:
         with self._mutex:
-            element = _Element(priority=priority, order=self.get_order(priority), payload=obj)
+            element = _Element(priority=priority, order=self.__get_order(priority), payload=obj)
             heapq.heappush(self.heap, element)
 
             self.length += 1

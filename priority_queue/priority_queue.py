@@ -1,6 +1,8 @@
 import heapq
 from typing import Dict, Any, Union
 import time
+import threading
+
 
 _Number = Union[int, float]
 
@@ -53,6 +55,7 @@ class PriorityQueue:
         self.length = 0
         self.priority_lentghs: Dict[_Number, int] = {}  # 每个优先级的队列长度
         self.priority_timestamp_order: Dict[_Number, _TimestampOrder] = {}
+        self._mutex = threading.Lock()
 
     def get_order(self, priority: int) -> '_TimestampOrder':
         """
@@ -74,15 +77,17 @@ class PriorityQueue:
         return self.length == 0
 
     def push(self, obj, priority: _Number = Priorities.NORMAL) -> None:
-        element = _Element(priority=priority, order=self.get_order(priority), payload=obj)
-        heapq.heappush(self.heap, element)
-        self.length += 1
+        with self._mutex:
+            element = _Element(priority=priority, order=self.get_order(priority), payload=obj)
+            heapq.heappush(self.heap, element)
+            self.length += 1
 
     def pop(self) -> Any:
-        if self.is_empty():
-            raise QueueEmptyException
-        self.length -= 1
-        return heapq.heappop(self.heap).payload
+        with self._mutex:
+            if self.is_empty():
+                raise QueueEmptyException
+            self.length -= 1
+            return heapq.heappop(self.heap).payload
 
 
 class _TimestampOrder:

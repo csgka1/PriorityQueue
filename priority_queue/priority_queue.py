@@ -30,10 +30,22 @@ class PriorityQueue:
     >>> pq.push(10, Priorities.HIGH)
     >>> pq.push(20)
     >>> pq.push(30)
+    >>> pq.get_length()
+    3
+    >>> pq.get_length(Priorities.LOW)
+    0
+    >>> pq.get_length(Priorities.NORMAL)
+    2
     >>> pq.pop()
     10
     >>> pq.pop()
     20
+    >>> pq.get_length()
+    1
+    >>> pq.get_length(Priorities.NORMAL)
+    1
+    >>> pq.get_length(Priorities.HIGH)
+    0
     >>> pq.push(40, Priorities.LOW)
     >>> pq.push(50, Priorities.HIGH)
     >>> pq.push(60, Priorities.NORMAL)
@@ -48,6 +60,8 @@ class PriorityQueue:
     ... except QueueEmptyException as e:
     ...     print("QueueEmptyException")
     QueueEmptyException
+    >>> pq.get_length()
+    0
     """
 
     def __init__(self):
@@ -80,14 +94,35 @@ class PriorityQueue:
         with self._mutex:
             element = _Element(priority=priority, order=self.get_order(priority), payload=obj)
             heapq.heappush(self.heap, element)
+
             self.length += 1
+            if priority not in self.priority_lentghs.keys():
+                self.priority_lentghs[priority] = 1
+            else:
+                self.priority_lentghs[priority] += 1
 
     def pop(self) -> Any:
         with self._mutex:
             if self.is_empty():
                 raise QueueEmptyException
             self.length -= 1
-            return heapq.heappop(self.heap).payload
+            popped: _Element = heapq.heappop(self.heap)
+            self.priority_lentghs[popped.priority] -= 1
+            return popped.payload
+
+    def get_length(self, priority=None) -> int:
+        """
+        获取指定优先级的队列长度。如果没有指定优先级，则返回整个队列的长度。
+        :param priority: 优先级，默认为 None
+        :return: 指定优先级的队列长度。若指定的优先级从未出现过，返回 0
+        """
+        if priority is None:
+            return self.length
+        else:
+            if priority not in self.priority_lentghs.keys():
+                return 0
+            else:
+                return self.priority_lentghs[priority]
 
 
 class _TimestampOrder:
